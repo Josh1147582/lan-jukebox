@@ -1,0 +1,15 @@
+<a href="/">Back</a>
+<h1>{{title}}</h1>
+{{#if errors}}
+      {{#each errors}}
+        <div class="alert alert-danger">{{msg}}</div>
+      {{/each}}
+{{/if}}
+<label>Upload a file:</label><br/>
+<form method="post" class="upload">
+  <div class="form-group">
+    <input type="text" class="form-control" placeholder="TODO file upload" name="file">
+    <button type="submit" class="btn btn-default file-button">Submit</button>
+    <!-- TODO file size limit -->
+  </div>
+</form> 
