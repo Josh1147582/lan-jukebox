@@ -8,13 +8,24 @@ router.use(expressValidator());
 
 var child_process = require('child_process');
 
+var Player = require('player');
+
+/* Example player code
+var player = new Player('./downloads/Doodlebob - Bring Me to Life.mp3');
+// play now and callback when playend 
+player.play(function(err, player){
+    console.log('playend!');
+});
+player.play();
+*/
+
 /* GET home page. */
 router.get('/', function(req, res, next) {
-  res.render('index', { title: 'LAN Jukebox' });
+  res.render('index');
 });
 
 router.get('/youtube', function(req, res, next) {
-  res.render('youtube', { title: 'LAN Jukebox - Add a Youtube Video' });
+  res.render('youtube');
 });
 
 router.use(expressValidator({
@@ -41,18 +52,17 @@ router.post('/youtube', function(req, res) {
     
     if(errors){
 	res.render('youtube', {
-	    title: 'LAN Jukebox - Add a Youtube Video',
 	    errors:errors
 	});
     } else {
-	var youtube_dl = child_process.spawn('/usr/bin/youtube-dl', ['-x', '-o', 'downloads/%(title)s.%(ext)s', video]);
+	var youtube_dl = child_process.spawn('/usr/bin/youtube-dl', ['-x', '--audio-format', 'mp3', '-o', 'downloads/%(title)s.%(ext)s', video]);
 	// TODO eval video
-	res.render('index', { title: 'LAN Jukebox' });
+	res.render('index');
     }
 });
 
 router.get('/file', function(req, res, next) {
-  res.render('file', { title: 'LAN Jukebox - Add a Music File' });
+  res.render('file');
 });
 
 module.exports = router;
