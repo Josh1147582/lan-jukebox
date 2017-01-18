@@ -9,19 +9,24 @@ router.use(expressValidator());
 var child_process = require('child_process');
 
 var Player = require('player');
-
-/* Example player code
-var player = new Player('./downloads/Doodlebob - Bring Me to Life.mp3');
-// play now and callback when playend 
-player.play(function(err, player){
-    console.log('playend!');
-});
-player.play();
-*/
+var player = new Player();
 
 /* GET home page. */
 router.get('/', function(req, res, next) {
-  res.render('index');
+    var playlist;
+    if(player.list.length) {
+	playlist = '<ul>';
+	for(var i=0; i < player.list.length; i++) {
+	    playlist +=
+		'<li>' +
+		player.list[i].replace(/^\.\/downloads\//, '') .replace(/\.mp3$/, '') +
+		'</li>';
+	}
+	playlist += '</ul>';
+    } else {
+	playlist = '<p>No songs in playlist.</p>';
+    }
+    res.render('index', { playlist: playlist });
 });
 
 router.get('/youtube', function(req, res, next) {
@@ -56,8 +61,20 @@ router.post('/youtube', function(req, res) {
 	});
     } else {
 	var youtube_dl = child_process.spawn('/usr/bin/youtube-dl', ['-x', '--audio-format', 'mp3', '-o', 'downloads/%(title)s.%(ext)s', video]);
-	// TODO eval video
-	res.render('index');
+	youtube_dl.on('close', (code) => {
+	    console.log("Done getting " + video);
+	    var error;
+	    youtube_dl.stderr.on('data', (data) => {
+		error = data;
+		console.log(`Error getting video: ${data}`);
+		// TODO give error to user when they return to /
+	    });
+
+	    if(!error) {
+		var youtube_dl_get_title = child_process.spawnSync('/usr/bin/youtube-dl', ['--get-title', video]);
+		player.add('./downloads/' + youtube_dl_get_title.stdout.toString().replace('\n', '') + ".mp3");
+	    }
+	res.redirect('/');
     }
 });
 
