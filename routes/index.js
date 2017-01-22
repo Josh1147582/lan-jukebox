@@ -11,6 +11,8 @@ var child_process = require('child_process');
 var Player = require('player');
 var player = new Player();
 
+var YOUTUBE_DL_LOC = '/usr/local/bin/youtube-dl'
+
 /* GET home page. */
 router.get('/', function(req, res, next) {
     var playlist;
@@ -37,8 +39,7 @@ router.use(expressValidator({
     customValidators: {
 	dlSuccess: function(video) {
 	    // Test if the requested video is available.
-	    var youtube_dl = child_process.spawnSync('/usr/bin/youtube-dl', ['-s', video]);
-	    console.log(youtube_dl.stderr.toString());
+	    var youtube_dl = child_process.spawnSync(YOUTUBE_DL_LOC, ['-s', video]);
 	    if (youtube_dl.stderr.toString()) {
 		return false;
 	    }
@@ -60,21 +61,22 @@ router.post('/youtube', function(req, res) {
 	    errors:errors
 	});
     } else {
-	var youtube_dl = child_process.spawn('/usr/bin/youtube-dl', ['-x', '--audio-format', 'mp3', '-o', 'downloads/%(title)s.%(ext)s', video]);
-	youtube_dl.on('close', (code) => {
-	    console.log("Done getting " + video);
-	    var error;
-	    youtube_dl.stderr.on('data', (data) => {
-		error = data;
-		console.log(`Error getting video: ${data}`);
-		// TODO give error to user when they return to /
-	    });
+        var youtube_dl = child_process.spawn(YOUTUBE_DL_LOC, ['-x', '--audio-format', 'mp3', '-o', 'downloads/%(title)s.%(ext)s', video]);
+        youtube_dl.on('close', (code) => {
+            console.log("Done getting " + video);
+            var error;
+            youtube_dl.stderr.on('data', (data) => {
+                error = data;
+                console.log(`Error getting video: ${data}`);
+                // TODO give error to user when they return to /
+            });
 
-	    if(!error) {
-		var youtube_dl_get_title = child_process.spawnSync('/usr/bin/youtube-dl', ['--get-title', video]);
-		player.add('./downloads/' + youtube_dl_get_title.stdout.toString().replace('\n', '') + ".mp3");
-	    }
-	res.redirect('/');
+            if(!error) {
+                var youtube_dl_get_title = child_process.spawnSync(YOUTUBE_DL_LOC, ['--get-title', video]);
+                player.add('./downloads/' + youtube_dl_get_title.stdout.toString().replace('\n', '') + ".mp3");
+            }
+            res.redirect('/');
+        });
     }
 });
 
