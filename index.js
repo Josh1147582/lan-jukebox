@@ -1,13 +1,36 @@
-var app = require('express')();
+// Express and http
+var express = require('express');
+var app = express();
+var http = require('http').Server(app);
 
-// Body parsing
+// view engine setup
+var path = require('path');
+app.set('views', path.join(__dirname, 'views'));
+app.set('view engine', 'hbs');
+
+// logging
+var logger = require('morgan');
+app.use(logger('dev'));
+
+
+// Body parsing and validating
 var bodyParser = require('body-parser');
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(bodyParser.json());
 
-// Validation
 var expressValidator = require('express-validator');
 app.use(expressValidator());
+
+// Sockets
+var io = require('socket.io').listen(http);
+
+// Unused (for now) cookies and favicons
+//var favicon = require('serve-favicon');
+//var cookieParser = require('cookie-parser');
+// uncomment after placing your favicon in /public
+//app.use(favicon(path.join(__dirname, 'public', 'favicon.ico')));
+//app.use(cookieParser());
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Child process, for spawning youtube-dl
 var child_process = require('child_process');
@@ -20,6 +43,7 @@ var playlist = [];
 var playing = 'None';
 var played = [];
 
+// Player module
 var Player = require('player');
 
 // Create a player with the proper error handling.
@@ -44,7 +68,7 @@ function playerHandleError(playlist, played) {
 
     // TODO Workaround for a bug in player: wait a couple seconds so the
     // songs don't overlap.
-    
+
     // Move the recently playing song to played.
     played.push(playing);
 
@@ -70,7 +94,7 @@ function playerAddSong(song) {
 	player = playerCreator(song);
 	player.play();
 	playing = song;
-    } else { 
+    } else {
 	// Otherwise add it to the queue
 	playlist.push(song);
     }
@@ -139,36 +163,36 @@ app.use(expressValidator({
 
 app.post('/youtube', function(req, res) {
     var video = req.body.video;
-    
+
     req.checkBody('video', 'URL is not valid.').dlSuccess();
-    
+
     var errors = req.validationErrors();
-    
+
     if(errors){
 	res.render('youtube', {
 	    errors:errors
 	});
     } else {
-        var youtube_dl = child_process.spawn(YOUTUBE_DL_LOC, ['-x', '--audio-format', 'mp3', '-o', 'downloads/%(title)s.%(ext)s', video]);
-        youtube_dl.on('close', (code) => {
-            console.log("Done getting " + video);
-            var error;
-            youtube_dl.stderr.on('data', (data) => {
-                error = data;
-                console.log(`Error getting video: ${data}`);
-                // TODO give error to user when they return to /
-            });
+	var youtube_dl = child_process.spawn(YOUTUBE_DL_LOC, ['-x', '--audio-format', 'mp3', '-o', 'downloads/%(title)s.%(ext)s', video]);
+	youtube_dl.on('close', (code) => {
+	    console.log("Done getting " + video);
+	    var error;
+	    youtube_dl.stderr.on('data', (data) => {
+		error = data;
+		console.log(`Error getting video: ${data}`);
+		// TODO give error to user when they return to /
+	    });
 
-            if(!error) {
-                var youtube_dl_get_title = child_process.spawnSync(YOUTUBE_DL_LOC, ['--get-title', video]);
+	    if(!error) {
+		var youtube_dl_get_title = child_process.spawnSync(YOUTUBE_DL_LOC, ['--get-title', video]);
 		console.log(youtube_dl_get_title.stdout.toString());
-                playerAddSong('./downloads/' + youtube_dl_get_title.stdout.toString()
+		playerAddSong('./downloads/' + youtube_dl_get_title.stdout.toString()
 			      .replace('\n', '')
 			      .replace(new RegExp('"', 'g'), '\'')
 			      + ".mp3");
-            }
-            res.redirect('/');
-        });
+	    }
+	    res.redirect('/');
+	});
     }
 });
 
@@ -177,4 +201,43 @@ app.get('/file', function(req, res, next) {
 });
 
 
-module.exports = app;
+// error handlers
+
+// catch 404 and forward to error handler
+app.use(function(req, res, next) {
+  var err = new Error('Not Found');
+  err.status = 404;
+  next(err);
+});
+
+// error handlers
+
+// development error handler
+// will print stacktrace
+if (app.get('env') === 'development') {
+  app.use(function(err, req, res, next) {
+    res.status(err.status || 500);
+    res.render('error', {
+      message: err.message,
+      error: err
+    });
+  });
+}
+
+// production error handler
+// no stacktraces leaked to user
+app.use(function(err, req, res, next) {
+  res.status(err.status || 500);
+  res.render('error', {
+    message: err.message,
+    error: {}
+  });
+});
+
+io.on('connection', function(socket){
+  console.log('a user connected');
+});
+
+http.listen(3000, function(){
+      console.log('listening on *:3000');
+});
