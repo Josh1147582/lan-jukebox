@@ -23,10 +23,6 @@ module.exports = function (io) {
 
     var Player = require('player');
 
-    io.on('connection', function (socket) {
-	console.log('a user connected');
-    });
-
     // Create a player with the proper error handling.
     function playerCreator(song) {
 	if (song)
@@ -37,6 +33,41 @@ module.exports = function (io) {
     }
 
     player = playerCreator();
+
+    playerState = 'playing';
+
+    io.on('connection', function(socket){
+	io.emit(playerState);
+	socket.on('chat message', function(msg){
+	    io.emit('chat message', msg);
+	});
+	// TODO handle button when nothing is playing.
+	socket.on('pause', function() {
+	    console.log('pausing');
+	    io.emit('player-transition', 'Pausing');
+	    player.pause();
+	    playerState = 'paused';
+
+	    // Player is a high quality plugin, and breaks if you spam
+	    // pause(). So put a 3 second delay in between
+	    // transitions.
+	    // TODO Find a better way to handle this.
+	    setTimeout(function() {
+		io.emit('paused');
+	    }, 3000);
+	});
+	socket.on('play', function() {
+	    console.log('playing');
+	    io.emit('player-transition', 'Playing');
+	    player.pause();
+	    playerState = 'playing';
+	    setTimeout(function() {
+		io.emit('playing');
+	    }, 3000);
+	});
+	
+    });
+
 
     // Player functionality
 
@@ -131,7 +162,7 @@ module.exports = function (io) {
 
 		// DEBUG: for when I forget to change the var
 		if(youtube_dl.stderr == null) {
-		    console.log("Your youtube-dl location is probably invalid.");
+		    console.log('Your youtube-dl location is probably invalid.');
 		}
 
 		if (youtube_dl.stderr.toString()) {
@@ -157,7 +188,7 @@ module.exports = function (io) {
 	} else {
 	    var youtube_dl = child_process.spawn(YOUTUBE_DL_LOC, ['-x', '--audio-format', 'mp3', '-o', 'downloads/%(title)s.%(ext)s', video]);
 	    youtube_dl.on('close', (code) => {
-		console.log("Done getting " + video);
+		console.log('Done getting ' + video);
 		var error;
 		youtube_dl.stderr.on('data', (data) => {
 		    error = data;
@@ -171,7 +202,7 @@ module.exports = function (io) {
 		    playerAddSong('./downloads/' + youtube_dl_get_title.stdout.toString()
 				  .replace('\n', '')
 				  .replace(new RegExp('"', 'g'), '\'')
-				  + ".mp3");
+				  + '.mp3');
 		}
 		res.redirect('/');
 	    });

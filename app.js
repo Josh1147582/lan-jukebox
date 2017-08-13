@@ -25,12 +25,6 @@ var routes = require('./routes/index')(io);
 //app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// // Add socket.io to res in the event loop.
-// app.use(function(req, res, next){
-//   res.io = io;
-//   next();
-// });
-
 // Add the route.
 app.use('/', routes);
 
